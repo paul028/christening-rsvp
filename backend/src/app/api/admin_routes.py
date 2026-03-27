@@ -1,0 +1,167 @@
+"""Admin API endpoints for guest management."""
+
+from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
+
+from src.core.models.guest import Guest, RsvpStatus
+from src.services.guest_service import GuestService
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+_guest_service: GuestService | None = None
+
+
+def init_admin_routes(guest_service: GuestService) -> None:
+    """Wire the guest service dependency into this router.
+
+    Args:
+        guest_service: The service instance to use for admin operations.
+    """
+    global _guest_service  # noqa: PLW0603
+    _guest_service = guest_service
+
+
+def _get_guest_service() -> GuestService:
+    """Return the configured guest service or raise if not initialised.
+
+    Returns:
+        The active GuestService instance.
+
+    Raises:
+        RuntimeError: If the service has not been initialised.
+    """
+    if _guest_service is None:
+        raise RuntimeError("GuestService not initialised")
+    return _guest_service
+
+
+class CreateGuestRequest(BaseModel):
+    """Payload for creating a new guest.
+
+    Attributes:
+        name: Full name of the guest.
+        email: Optional email address.
+        phone: Optional phone number.
+    """
+
+    name: str
+    email: str | None = None
+    phone: str | None = None
+
+
+class UpdateGuestRequest(BaseModel):
+    """Payload for updating guest information.
+
+    Attributes:
+        name: Updated full name.
+        email: Updated email address.
+        phone: Updated phone number.
+    """
+
+    name: str
+    email: str | None = None
+    phone: str | None = None
+
+
+class RsvpStats(BaseModel):
+    """Aggregate RSVP statistics.
+
+    Attributes:
+        total: Total number of guests.
+        attending: Number of guests who confirmed attendance.
+        not_attending: Number of guests who declined.
+        pending: Number of guests who have not yet responded.
+    """
+
+    total: int
+    attending: int
+    not_attending: int
+    pending: int
+
+
+@router.get("/guests", response_model=list[Guest])
+async def get_all_guests_async() -> list[Guest]:
+    """List all guests with their RSVP status.
+
+    Returns:
+        A list of every guest record.
+    """
+    service = _get_guest_service()
+    return await service.get_all_guests_async()
+
+
+@router.post("/guests", response_model=Guest, status_code=201)
+async def create_guest_async(request: CreateGuestRequest) -> Guest:
+    """Add a new guest and generate their unique RSVP token.
+
+    Args:
+        request: The guest creation payload.
+
+    Returns:
+        The newly created guest record including the RSVP token.
+    """
+    service = _get_guest_service()
+    return await service.create_guest_async(
+        name=request.name,
+        email=request.email,
+        phone=request.phone,
+    )
+
+
+@router.put("/guests/{guest_id}", response_model=Guest)
+async def update_guest_async(guest_id: str, request: UpdateGuestRequest) -> Guest:
+    """Update a guest's personal information.
+
+    Args:
+        guest_id: The UUID of the guest to update.
+        request: The updated guest data.
+
+    Returns:
+        The updated guest record.
+
+    Raises:
+        HTTPException: 404 if the guest is not found.
+    """
+    service = _get_guest_service()
+    try:
+        return await service.update_guest_async(
+            guest_id=guest_id,
+            name=request.name,
+            email=request.email,
+            phone=request.phone,
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Guest not found")
+
+
+@router.delete("/guests/{guest_id}", status_code=204)
+async def delete_guest_async(guest_id: str) -> None:
+    """Remove a guest record.
+
+    Args:
+        guest_id: The UUID of the guest to delete.
+
+    Raises:
+        HTTPException: 404 if the guest is not found.
+    """
+    service = _get_guest_service()
+    is_deleted = await service.delete_guest_async(guest_id)
+    if not is_deleted:
+        raise HTTPException(status_code=404, detail="Guest not found")
+
+
+@router.get("/stats", response_model=RsvpStats)
+async def get_rsvp_stats_async() -> RsvpStats:
+    """Calculate aggregate RSVP statistics.
+
+    Returns:
+        A summary of guest counts by RSVP status.
+    """
+    service = _get_guest_service()
+    guests = await service.get_all_guests_async()
+    return RsvpStats(
+        total=len(guests),
+        attending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.ATTENDING),
+        not_attending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.NOT_ATTENDING),
+        pending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.PENDING),
+    )
