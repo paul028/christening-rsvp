@@ -30,6 +30,7 @@ def _create_guest(
         name=name,
         token=token,
         rsvp_status=rsvp_status,
+        max_companions=5,
         created_at="2026-01-01T00:00:00+00:00",
     )
 
@@ -138,9 +139,13 @@ class TestSubmitRsvpAsync:
         mock_repo.get_by_token_async.return_value = existing_guest
         mock_repo.update_async.side_effect = lambda g: g
         sut = _create_sut(repository=mock_repo)
+        from src.core.models.guest import Companion
         rsvp_request = RsvpRequest(
             rsvp_status=RsvpStatus.ATTENDING,
-            number_of_companions=2,
+            companions=[
+                Companion(first_name="Ana", last_name="Santos"),
+                Companion(first_name="Jose", last_name="Santos"),
+            ],
             message="Congratulations!",
         )
 
@@ -150,6 +155,7 @@ class TestSubmitRsvpAsync:
         # Assert
         assert result.rsvp_status == RsvpStatus.ATTENDING
         assert result.number_of_companions == 2
+        assert len(result.companions) == 2
         assert result.message == "Congratulations!"
         assert result.responded_at is not None
         mock_repo.update_async.assert_awaited_once()

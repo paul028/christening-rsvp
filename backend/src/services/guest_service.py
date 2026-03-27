@@ -31,6 +31,7 @@ class GuestService:
         name: str,
         email: str | None = None,
         phone: str | None = None,
+        max_companions: int = 0,
     ) -> Guest:
         """Create a new guest with a unique RSVP token.
 
@@ -38,6 +39,7 @@ class GuestService:
             name: Full name of the guest.
             email: Optional email address.
             phone: Optional phone number.
+            max_companions: Maximum companions this guest may bring.
 
         Returns:
             The newly created guest record.
@@ -48,6 +50,7 @@ class GuestService:
             email=email,
             phone=phone,
             token=self._token_service.generate_token(),
+            max_companions=max_companions,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         return await self._guest_repository.add_async(guest)
@@ -80,10 +83,12 @@ class GuestService:
         if guest is None:
             raise ValueError(f"Guest not found for token: {token}")
 
+        companions = rsvp_request.companions[: guest.max_companions]
         updated_guest = guest.model_copy(
             update={
                 "rsvp_status": rsvp_request.rsvp_status,
-                "number_of_companions": rsvp_request.number_of_companions,
+                "companions": companions,
+                "number_of_companions": len(companions),
                 "dietary_restrictions": rsvp_request.dietary_restrictions,
                 "message": rsvp_request.message,
                 "responded_at": datetime.now(timezone.utc).isoformat(),
@@ -116,6 +121,7 @@ class GuestService:
         name: str,
         email: str | None = None,
         phone: str | None = None,
+        max_companions: int = 0,
     ) -> Guest:
         """Update a guest's personal information.
 
@@ -124,6 +130,7 @@ class GuestService:
             name: Updated full name.
             email: Updated email address.
             phone: Updated phone number.
+            max_companions: Maximum companions this guest may bring.
 
         Returns:
             The updated guest record.
@@ -140,6 +147,7 @@ class GuestService:
                 "name": name,
                 "email": email,
                 "phone": phone,
+                "max_companions": max_companions,
             }
         )
         return await self._guest_repository.update_async(updated_guest)

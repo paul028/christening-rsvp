@@ -4,35 +4,38 @@ from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
 from src.core.models.guest import Guest, RsvpStatus
+from src.core.models.rsvp_window import RsvpWindow, RsvpWindowStatus
 from src.services.guest_service import GuestService
+from src.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 _guest_service: GuestService | None = None
+_settings_service: SettingsService | None = None
 
 
-def init_admin_routes(guest_service: GuestService) -> None:
-    """Wire the guest service dependency into this router.
+def init_admin_routes(guest_service: GuestService, settings_service: SettingsService) -> None:
+    """Wire service dependencies into this router.
 
     Args:
         guest_service: The service instance to use for admin operations.
+        settings_service: The service instance for RSVP window management.
     """
-    global _guest_service  # noqa: PLW0603
+    global _guest_service, _settings_service  # noqa: PLW0603
     _guest_service = guest_service
+    _settings_service = settings_service
 
 
 def _get_guest_service() -> GuestService:
-    """Return the configured guest service or raise if not initialised.
-
-    Returns:
-        The active GuestService instance.
-
-    Raises:
-        RuntimeError: If the service has not been initialised.
-    """
     if _guest_service is None:
         raise RuntimeError("GuestService not initialised")
     return _guest_service
+
+
+def _get_settings_service() -> SettingsService:
+    if _settings_service is None:
+        raise RuntimeError("SettingsService not initialised")
+    return _settings_service
 
 
 class CreateGuestRequest(BaseModel):
@@ -42,11 +45,13 @@ class CreateGuestRequest(BaseModel):
         name: Full name of the guest.
         email: Optional email address.
         phone: Optional phone number.
+        max_companions: Maximum number of companions this guest may bring.
     """
 
     name: str
     email: str | None = None
     phone: str | None = None
+    max_companions: int = 0
 
 
 class UpdateGuestRequest(BaseModel):
@@ -56,27 +61,33 @@ class UpdateGuestRequest(BaseModel):
         name: Updated full name.
         email: Updated email address.
         phone: Updated phone number.
+        max_companions: Maximum number of companions this guest may bring.
     """
 
     name: str
     email: str | None = None
     phone: str | None = None
+    max_companions: int = 0
 
 
 class RsvpStats(BaseModel):
     """Aggregate RSVP statistics.
 
     Attributes:
-        total: Total number of guests.
+        total: Total number of invited guests.
         attending: Number of guests who confirmed attendance.
         not_attending: Number of guests who declined.
         pending: Number of guests who have not yet responded.
+        total_companions: Total companions across all attending guests.
+        attending_headcount: Attending guests plus their companions.
     """
 
     total: int
     attending: int
     not_attending: int
     pending: int
+    total_companions: int
+    attending_headcount: int
 
 
 @router.get("/guests", response_model=list[Guest])
@@ -105,6 +116,7 @@ async def create_guest_async(request: CreateGuestRequest) -> Guest:
         name=request.name,
         email=request.email,
         phone=request.phone,
+        max_companions=request.max_companions,
     )
 
 
@@ -129,6 +141,7 @@ async def update_guest_async(guest_id: str, request: UpdateGuestRequest) -> Gues
             name=request.name,
             email=request.email,
             phone=request.phone,
+            max_companions=request.max_companions,
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Guest not found")
@@ -159,9 +172,36 @@ async def get_rsvp_stats_async() -> RsvpStats:
     """
     service = _get_guest_service()
     guests = await service.get_all_guests_async()
+    attending_guests = [g for g in guests if g.rsvp_status == RsvpStatus.ATTENDING]
+    total_companions = sum(len(g.companions) for g in attending_guests)
     return RsvpStats(
         total=len(guests),
-        attending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.ATTENDING),
+        attending=len(attending_guests),
         not_attending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.NOT_ATTENDING),
         pending=sum(1 for g in guests if g.rsvp_status == RsvpStatus.PENDING),
+        total_companions=total_companions,
+        attending_headcount=len(attending_guests) + total_companions,
     )
+
+
+@router.get("/rsvp-window", response_model=RsvpWindowStatus)
+async def get_rsvp_window_async() -> RsvpWindowStatus:
+    """Return the current RSVP window configuration and its open/closed state.
+
+    Returns:
+        The RSVP window with a computed is_open flag.
+    """
+    return await _get_settings_service().get_rsvp_window_status_async()
+
+
+@router.put("/rsvp-window", response_model=RsvpWindowStatus)
+async def set_rsvp_window_async(window: RsvpWindow) -> RsvpWindowStatus:
+    """Set the period during which guests may submit or edit their RSVP.
+
+    Args:
+        window: The new window configuration. Pass null dates to remove that boundary.
+
+    Returns:
+        The updated window with a computed is_open flag.
+    """
+    return await _get_settings_service().set_rsvp_window_async(window)

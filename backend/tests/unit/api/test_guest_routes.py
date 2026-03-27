@@ -63,7 +63,7 @@ class TestGuestRoutes:
             # Act - create guest
             create_response = await client.post(
                 "/api/admin/guests",
-                json={"name": "Test User", "email": "test@example.com"},
+                json={"name": "Test User", "email": "test@example.com", "max_companions": 2},
             )
 
             # Assert - guest created
@@ -77,7 +77,7 @@ class TestGuestRoutes:
                 f"/api/guests/{token}/rsvp",
                 json={
                     "rsvp_status": "attending",
-                    "number_of_companions": 1,
+                    "companions": [{"first_name": "Ana", "last_name": "Santos"}],
                     "message": "So happy!",
                 },
             )
@@ -87,6 +87,7 @@ class TestGuestRoutes:
             rsvp_data = rsvp_response.json()
             assert rsvp_data["rsvp_status"] == "attending"
             assert rsvp_data["number_of_companions"] == 1
+            assert len(rsvp_data["companions"]) == 1
 
             # Act - check stats
             stats_response = await client.get("/api/admin/stats")

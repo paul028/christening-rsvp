@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import type { Guest, RsvpRequest } from '../types';
+import type { Companion, Guest, RsvpRequest } from '../types';
 import { submitRsvp } from '../api/client';
 
 interface RsvpFormProps {
   guest: Guest;
   onUpdate: (guest: Guest) => void;
+  windowOpen: boolean;
 }
 
-const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
+const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
   const hasResponded = guest.rsvp_status !== 'pending';
-  const [isEditing, setIsEditing] = useState(!hasResponded);
+  const [isEditing, setIsEditing] = useState(!hasResponded && windowOpen);
   const [status, setStatus] = useState<'attending' | 'not_attending'>(
     guest.rsvp_status === 'not_attending' ? 'not_attending' : 'attending'
   );
-  const [companions, setCompanions] = useState(guest.number_of_companions);
+  const emptyCompanion = (): Companion => ({ first_name: '', last_name: '', dietary_restrictions: null });
+  const [companions, setCompanions] = useState<Companion[]>(
+    guest.companions.length > 0 ? guest.companions : []
+  );
   const [dietary, setDietary] = useState(guest.dietary_restrictions || '');
   const [message, setMessage] = useState(guest.message || '');
   const [loading, setLoading] = useState(false);
@@ -27,7 +31,7 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
 
     const data: RsvpRequest = {
       rsvp_status: status,
-      number_of_companions: status === 'attending' ? companions : 0,
+      companions: status === 'attending' ? companions : [],
       dietary_restrictions: dietary.trim() || null,
       message: message.trim() || null,
     };
@@ -61,6 +65,12 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
         </div>
       )}
 
+      {!windowOpen && (
+        <div className="rsvp-window-closed">
+          <p>The RSVP period has closed. Changes are no longer accepted.</p>
+        </div>
+      )}
+
       {hasResponded && !isEditing ? (
         <div className="rsvp-response-card">
           <h3>Your Response</h3>
@@ -75,10 +85,18 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
                   : 'Regretfully Declining'}
               </span>
             </p>
-            {guest.rsvp_status === 'attending' && guest.number_of_companions > 0 && (
-              <p>
-                <strong>Companions:</strong> {guest.number_of_companions}
-              </p>
+            {guest.rsvp_status === 'attending' && guest.companions.length > 0 && (
+              <div>
+                <strong>Companions:</strong>
+                <ul style={{ margin: '0.25rem 0 0 1rem', padding: 0 }}>
+                  {guest.companions.map((c, i) => (
+                    <li key={i}>
+                      {c.first_name} {c.last_name}
+                      {c.dietary_restrictions && ` — ${c.dietary_restrictions}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {guest.dietary_restrictions && (
               <p>
@@ -91,12 +109,14 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
               </p>
             )}
           </div>
-          <button
-            className="btn btn-secondary"
-            onClick={() => setIsEditing(true)}
-          >
-            Update My Response
-          </button>
+          {windowOpen && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsEditing(true)}
+            >
+              Update My Response
+            </button>
+          )}
         </div>
       ) : (
         <form className="rsvp-form" onSubmit={handleSubmit}>
@@ -138,20 +158,74 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate }) => {
             </div>
           </div>
 
-          {status === 'attending' && (
+          {status === 'attending' && guest.max_companions > 0 && (
             <div className="form-group">
-              <label className="form-label">Number of Companions</label>
-              <input
-                type="number"
-                className="form-input"
-                min="0"
-                max="10"
-                value={companions}
-                onChange={(e) => setCompanions(parseInt(e.target.value) || 0)}
-              />
-              <small className="form-hint">
-                How many additional guests will you bring?
-              </small>
+              <label className="form-label">
+                Companions
+                <small className="form-hint" style={{ marginLeft: '0.5rem' }}>
+                  (up to {guest.max_companions})
+                </small>
+              </label>
+              {companions.map((c, i) => (
+                <div key={i} className="companion-row">
+                  <div className="companion-row-header">
+                    <span className="companion-index">Companion {i + 1}</span>
+                    <button
+                      type="button"
+                      className="btn-remove-companion"
+                      onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="companion-fields">
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="First name *"
+                      value={c.first_name}
+                      onChange={(e) => {
+                        const updated = [...companions];
+                        updated[i] = { ...updated[i], first_name: e.target.value };
+                        setCompanions(updated);
+                      }}
+                      required
+                    />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Last name *"
+                      value={c.last_name}
+                      onChange={(e) => {
+                        const updated = [...companions];
+                        updated[i] = { ...updated[i], last_name: e.target.value };
+                        setCompanions(updated);
+                      }}
+                      required
+                    />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Dietary restrictions (optional)"
+                      value={c.dietary_restrictions || ''}
+                      onChange={(e) => {
+                        const updated = [...companions];
+                        updated[i] = { ...updated[i], dietary_restrictions: e.target.value || null };
+                        setCompanions(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {companions.length < guest.max_companions && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-add-companion"
+                  onClick={() => setCompanions([...companions, emptyCompanion()])}
+                >
+                  + Add Companion
+                </button>
+              )}
             </div>
           )}
 

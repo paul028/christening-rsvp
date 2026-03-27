@@ -6,7 +6,10 @@ import {
   updateGuest,
   deleteGuest,
   getStats,
+  getAdminRsvpWindow,
+  setAdminRsvpWindow,
 } from '../api/client';
+import type { RsvpWindowStatus } from '../types';
 
 const AdminPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -20,6 +23,7 @@ const AdminPage: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newMaxCompanions, setNewMaxCompanions] = useState(0);
   const [addLoading, setAddLoading] = useState(false);
   const [lastAddedGuest, setLastAddedGuest] = useState<Guest | null>(null);
 
@@ -28,18 +32,63 @@ const AdminPage: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editMaxCompanions, setEditMaxCompanions] = useState(0);
+
+  // RSVP window
+  const [rsvpWindow, setRsvpWindow] = useState<RsvpWindowStatus | null>(null);
+  const [windowStart, setWindowStart] = useState('');
+  const [windowEnd, setWindowEnd] = useState('');
+  const [windowSaving, setWindowSaving] = useState(false);
 
   // Copied URL feedback
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
+  const toLocalDatetimeInput = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const toIsoFromInput = (local: string) => local ? new Date(local).toISOString() : null;
+
+  const handleSaveWindow = async () => {
+    setWindowSaving(true);
+    try {
+      const updated = await setAdminRsvpWindow(toIsoFromInput(windowStart), toIsoFromInput(windowEnd));
+      setRsvpWindow(updated);
+    } catch {
+      setError('Failed to save RSVP window.');
+    } finally {
+      setWindowSaving(false);
+    }
+  };
+
+  const handleClearWindow = async () => {
+    setWindowSaving(true);
+    try {
+      const updated = await setAdminRsvpWindow(null, null);
+      setRsvpWindow(updated);
+      setWindowStart('');
+      setWindowEnd('');
+    } catch {
+      setError('Failed to clear RSVP window.');
+    } finally {
+      setWindowSaving(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
-      const [guestsData, statsData] = await Promise.all([
+      const [guestsData, statsData, windowData] = await Promise.all([
         getAdminGuests(),
         getStats(),
+        getAdminRsvpWindow(),
       ]);
       setGuests(guestsData);
       setStats(statsData);
+      setRsvpWindow(windowData);
+      setWindowStart(windowData.start_date ? toLocalDatetimeInput(windowData.start_date) : '');
+      setWindowEnd(windowData.end_date ? toLocalDatetimeInput(windowData.end_date) : '');
     } catch {
       setError('Failed to load data. Is the API server running?');
     } finally {
@@ -59,12 +108,14 @@ const AdminPage: React.FC = () => {
       const guest = await addGuest(
         newName.trim(),
         newEmail.trim() || undefined,
-        newPhone.trim() || undefined
+        newPhone.trim() || undefined,
+        newMaxCompanions,
       );
       setLastAddedGuest(guest);
       setNewName('');
       setNewEmail('');
       setNewPhone('');
+      setNewMaxCompanions(0);
       await fetchData();
     } catch {
       setError('Failed to add guest.');
@@ -88,6 +139,7 @@ const AdminPage: React.FC = () => {
     setEditName(guest.name);
     setEditEmail(guest.email || '');
     setEditPhone(guest.phone || '');
+    setEditMaxCompanions(guest.max_companions);
   };
 
   const handleUpdate = async () => {
@@ -97,7 +149,8 @@ const AdminPage: React.FC = () => {
         editingId,
         editName.trim(),
         editEmail.trim() || undefined,
-        editPhone.trim() || undefined
+        editPhone.trim() || undefined,
+        editMaxCompanions,
       );
       setEditingId(null);
       await fetchData();
@@ -190,8 +243,53 @@ const AdminPage: React.FC = () => {
             <div className="stat-number">{stats.total_companions}</div>
             <div className="stat-label">Total Companions</div>
           </div>
+          <div className="stat-card stat-headcount">
+            <div className="stat-number">{stats.attending_headcount}</div>
+            <div className="stat-label">Total Attending</div>
+          </div>
         </div>
       )}
+
+      {/* RSVP Window */}
+      <div className="admin-card">
+        <h2>
+          RSVP Window
+          {rsvpWindow && (
+            <span className={`window-status-badge ${rsvpWindow.is_open ? 'window-open' : 'window-closed'}`}>
+              {rsvpWindow.is_open ? 'Open' : 'Closed'}
+            </span>
+          )}
+        </h2>
+        <p className="window-hint">
+          Set the period during which guests may submit or edit their RSVP. Leave blank for no restriction.
+        </p>
+        <div className="window-form">
+          <label>
+            Start
+            <input
+              type="datetime-local"
+              value={windowStart}
+              onChange={(e) => setWindowStart(e.target.value)}
+            />
+          </label>
+          <label>
+            End
+            <input
+              type="datetime-local"
+              value={windowEnd}
+              onChange={(e) => setWindowEnd(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="window-actions">
+          <button className="btn btn-primary" onClick={handleSaveWindow} disabled={windowSaving}>
+            {windowSaving ? 'Saving...' : 'Save Window'}
+          </button>
+          <button className="btn btn-secondary" onClick={handleClearWindow} disabled={windowSaving}>
+            Clear
+          </button>
+        </div>
+      </div>
 
       {/* Add Guest Form */}
       <div className="admin-card">
@@ -215,6 +313,13 @@ const AdminPage: React.FC = () => {
             placeholder="Phone (optional)"
             value={newPhone}
             onChange={(e) => setNewPhone(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Max companions"
+            min="0"
+            value={newMaxCompanions}
+            onChange={(e) => setNewMaxCompanions(parseInt(e.target.value) || 0)}
           />
           <button type="submit" className="btn btn-primary" disabled={addLoading}>
             {addLoading ? 'Adding...' : 'Add Guest'}
@@ -269,6 +374,7 @@ const AdminPage: React.FC = () => {
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Status</th>
+                <th>Max</th>
                 <th>Companions</th>
                 <th>Message</th>
                 <th>RSVP Link</th>
@@ -304,7 +410,17 @@ const AdminPage: React.FC = () => {
                           className="edit-input"
                         />
                       </td>
-                      <td colSpan={3}></td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editMaxCompanions}
+                          onChange={(e) => setEditMaxCompanions(parseInt(e.target.value) || 0)}
+                          className="edit-input"
+                          style={{ width: '60px' }}
+                        />
+                      </td>
+                      <td colSpan={2}></td>
                       <td></td>
                       <td className="action-cell">
                         <button className="btn-action btn-save" onClick={handleUpdate}>
@@ -333,7 +449,16 @@ const AdminPage: React.FC = () => {
                           {statusLabel(guest.rsvp_status)}
                         </span>
                       </td>
-                      <td>{guest.number_of_companions}</td>
+                      <td>{guest.max_companions}</td>
+                      <td>
+                        {guest.companions.length === 0 ? '—' : (
+                          <ul style={{ margin: 0, padding: '0 0 0 1rem' }}>
+                            {guest.companions.map((c, i) => (
+                              <li key={i}>{c.first_name} {c.last_name}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </td>
                       <td className="message-cell">
                         {guest.message
                           ? guest.message.length > 30
@@ -369,7 +494,7 @@ const AdminPage: React.FC = () => {
               ))}
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="empty-row">
+                  <td colSpan={9} className="empty-row">
                     No guests found.
                   </td>
                 </tr>

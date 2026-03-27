@@ -13,6 +13,20 @@ class RsvpStatus(StrEnum):
     NOT_ATTENDING = "not_attending"
 
 
+class Companion(BaseModel):
+    """A companion attending with a guest.
+
+    Attributes:
+        first_name: Companion's first name.
+        last_name: Companion's last name.
+        dietary_restrictions: Optional dietary notes.
+    """
+
+    first_name: str
+    last_name: str
+    dietary_restrictions: str | None = None
+
+
 class Guest(BaseModel):
     """Represents an invited guest and their RSVP state.
 
@@ -23,8 +37,10 @@ class Guest(BaseModel):
         phone: Optional phone number.
         token: Unique URL token used for the RSVP link.
         rsvp_status: Current RSVP status.
-        number_of_companions: Number of additional companions.
-        dietary_restrictions: Optional dietary notes.
+        max_companions: Maximum companions this guest may bring.
+        companions: List of confirmed companions with their details.
+        number_of_companions: Derived count of companions (len of companions list).
+        dietary_restrictions: Optional dietary notes for the guest.
         message: Optional congratulatory message.
         responded_at: ISO datetime when the guest responded.
         created_at: ISO datetime when the guest record was created.
@@ -36,6 +52,8 @@ class Guest(BaseModel):
     phone: str | None = None
     token: str
     rsvp_status: RsvpStatus = RsvpStatus.PENDING
+    max_companions: int = 0
+    companions: list[Companion] = []
     number_of_companions: int = 0
     dietary_restrictions: str | None = None
     message: str | None = None
@@ -48,12 +66,12 @@ class RsvpRequest(BaseModel):
 
     Attributes:
         rsvp_status: The guest's attendance decision.
-        number_of_companions: How many additional people they are bringing.
-        dietary_restrictions: Any dietary needs.
+        companions: List of companions with their names and dietary needs.
+        dietary_restrictions: Dietary needs for the guest themselves.
         message: Optional congratulatory message.
     """
 
     rsvp_status: RsvpStatus
-    number_of_companions: int = 0
+    companions: list[Companion] = []
     dietary_restrictions: str | None = None
     message: str | None = None

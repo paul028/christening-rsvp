@@ -1,3 +1,9 @@
+export interface Companion {
+  first_name: string;
+  last_name: string;
+  dietary_restrictions: string | null;
+}
+
 export interface Guest {
   id: string;
   name: string;
@@ -5,6 +11,8 @@ export interface Guest {
   phone: string | null;
   token: string;
   rsvp_status: 'pending' | 'attending' | 'not_attending';
+  max_companions: number;
+  companions: Companion[];
   number_of_companions: number;
   dietary_restrictions: string | null;
   message: string | null;
@@ -25,9 +33,15 @@ export interface EventInfo {
 
 export interface RsvpRequest {
   rsvp_status: 'attending' | 'not_attending';
-  number_of_companions: number;
+  companions: Companion[];
   dietary_restrictions: string | null;
   message: string | null;
+}
+
+export interface RsvpWindowStatus {
+  start_date: string | null;
+  end_date: string | null;
+  is_open: boolean;
 }
 
 export interface RsvpStats {
@@ -36,4 +50,5 @@ export interface RsvpStats {
   not_attending: number;
   pending: number;
   total_companions: number;
+  attending_headcount: number;
 }
