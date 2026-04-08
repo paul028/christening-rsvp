@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { Guest, RsvpRequest, EventInfo, RsvpStats, RsvpWindowStatus } from '../types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,13 +28,13 @@ export async function getAdminGuests(): Promise<Guest[]> {
   return response.data;
 }
 
-export async function addGuest(name: string, email?: string, phone?: string, max_companions?: number): Promise<Guest> {
-  const response = await api.post<Guest>('/admin/guests', { name, email, phone, max_companions: max_companions ?? 0 });
+export async function addGuest(name: string, email?: string, phone?: string, max_companions?: number, sponsor_role?: 'ninong' | 'ninang' | null): Promise<Guest> {
+  const response = await api.post<Guest>('/admin/guests', { name, email, phone, max_companions: max_companions ?? 0, sponsor_role: sponsor_role ?? null });
   return response.data;
 }
 
-export async function updateGuest(guestId: string, name: string, email?: string, phone?: string, max_companions?: number): Promise<Guest> {
-  const response = await api.put<Guest>(`/admin/guests/${guestId}`, { name, email, phone, max_companions: max_companions ?? 0 });
+export async function updateGuest(guestId: string, name: string, email?: string, phone?: string, max_companions?: number, sponsor_role?: 'ninong' | 'ninang' | null): Promise<Guest> {
+  const response = await api.put<Guest>(`/admin/guests/${guestId}`, { name, email, phone, max_companions: max_companions ?? 0, sponsor_role: sponsor_role ?? null });
   return response.data;
 }
 

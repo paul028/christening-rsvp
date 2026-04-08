@@ -27,9 +27,9 @@ const EventDetails: React.FC = () => {
         <div className="event-card">
           <div className="event-card-icon">&#127860;</div>
           <h3>Reception</h3>
-          <p className="event-date">Following the Ceremony</p>
+          <p className="event-date">After the Ceremony</p>
           <p className="event-time">Lunch Celebration</p>
-          <p className="event-venue">Lasa</p>
+          <p className="event-venue">Lasa BBQ</p>
           <p className="event-venue-sub">SM Fairview</p>
           <a
             href="https://share.google/gBZW5Q3hQ6IEsYRKB"

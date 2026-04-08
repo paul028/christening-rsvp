@@ -10,6 +10,7 @@ export interface Guest {
   email: string | null;
   phone: string | null;
   token: string;
+  sponsor_role: 'ninong' | 'ninang' | null;
   rsvp_status: 'pending' | 'attending' | 'not_attending';
   max_companions: number;
   companions: Companion[];

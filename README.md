@@ -60,7 +60,11 @@ cd frontend
 # Install dependencies
 npm install
 
-# Run dev server (http://localhost:5173)
+# Configure environment (required for LAN access)
+cp .env.example .env
+# Edit VITE_PUBLIC_URL to match your machine's LAN IP
+
+# Run dev server (http://localhost:5173 + network URL)
 npm run dev
 
 # Build for production
@@ -69,12 +73,22 @@ npm run build
 
 ## Environment Variables
 
+### Backend (`backend/.env`)
+
 | Variable | Default | Description |
 |---|---|---|
 | `APP_HOST` | `0.0.0.0` | Server bind address |
 | `APP_PORT` | `8000` | Server port |
 | `DATA_DIR` | `./data` | Path for JSON guest data file |
 | `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed frontend origins |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_PUBLIC_URL` | *(unset — falls back to `window.location.origin`)* | Public base URL used when copying guest RSVP links in the admin dashboard. Set this to your LAN IP (e.g. `http://192.168.1.x:5173`) so copied links work on other devices. |
+
+> **LAN access**: Vite binds to all interfaces by default (`host: true`). Set `VITE_PUBLIC_URL` to your machine's LAN IP so the admin "Copy URL" button generates links that guests can open from their phones on the same network.
 
 ## API Endpoints
 

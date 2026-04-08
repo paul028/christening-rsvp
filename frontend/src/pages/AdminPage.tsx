@@ -24,6 +24,7 @@ const AdminPage: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newMaxCompanions, setNewMaxCompanions] = useState(0);
+  const [newSponsorRole, setNewSponsorRole] = useState<'ninong' | 'ninang' | ''>('');
   const [addLoading, setAddLoading] = useState(false);
   const [lastAddedGuest, setLastAddedGuest] = useState<Guest | null>(null);
 
@@ -33,6 +34,7 @@ const AdminPage: React.FC = () => {
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editMaxCompanions, setEditMaxCompanions] = useState(0);
+  const [editSponsorRole, setEditSponsorRole] = useState<'ninong' | 'ninang' | ''>('');
 
   // RSVP window
   const [rsvpWindow, setRsvpWindow] = useState<RsvpWindowStatus | null>(null);
@@ -110,12 +112,14 @@ const AdminPage: React.FC = () => {
         newEmail.trim() || undefined,
         newPhone.trim() || undefined,
         newMaxCompanions,
+        newSponsorRole || null,
       );
       setLastAddedGuest(guest);
       setNewName('');
       setNewEmail('');
       setNewPhone('');
       setNewMaxCompanions(0);
+      setNewSponsorRole('');
       await fetchData();
     } catch {
       setError('Failed to add guest.');
@@ -140,6 +144,7 @@ const AdminPage: React.FC = () => {
     setEditEmail(guest.email || '');
     setEditPhone(guest.phone || '');
     setEditMaxCompanions(guest.max_companions);
+    setEditSponsorRole(guest.sponsor_role ?? '');
   };
 
   const handleUpdate = async () => {
@@ -151,6 +156,7 @@ const AdminPage: React.FC = () => {
         editEmail.trim() || undefined,
         editPhone.trim() || undefined,
         editMaxCompanions,
+        editSponsorRole || null,
       );
       setEditingId(null);
       await fetchData();
@@ -160,11 +166,26 @@ const AdminPage: React.FC = () => {
   };
 
   const copyUrl = (token: string) => {
-    const url = `${window.location.origin}/rsvp/${token}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const base = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+    const url = `${base}/rsvp/${token}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedToken(token);
+        setTimeout(() => setCopiedToken(null), 2000);
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);
-    });
+    }
   };
 
   const filteredGuests = guests.filter((g) => {
@@ -321,6 +342,14 @@ const AdminPage: React.FC = () => {
             value={newMaxCompanions}
             onChange={(e) => setNewMaxCompanions(parseInt(e.target.value) || 0)}
           />
+          <select
+            value={newSponsorRole}
+            onChange={(e) => setNewSponsorRole(e.target.value as 'ninong' | 'ninang' | '')}
+          >
+            <option value="">Not a sponsor</option>
+            <option value="ninong">Ninong (Male)</option>
+            <option value="ninang">Ninang (Female)</option>
+          </select>
           <button type="submit" className="btn btn-primary" disabled={addLoading}>
             {addLoading ? 'Adding...' : 'Add Guest'}
           </button>
@@ -331,7 +360,7 @@ const AdminPage: React.FC = () => {
               <strong>{lastAddedGuest.name}</strong> added successfully!
             </p>
             <div className="rsvp-url-display">
-              <code>{window.location.origin}/rsvp/{lastAddedGuest.token}</code>
+              <code>{import.meta.env.VITE_PUBLIC_URL || window.location.origin}/rsvp/{lastAddedGuest.token}</code>
               <button
                 className="btn-copy"
                 onClick={() => copyUrl(lastAddedGuest.token)}
@@ -371,6 +400,7 @@ const AdminPage: React.FC = () => {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Role</th>
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Status</th>
@@ -420,7 +450,18 @@ const AdminPage: React.FC = () => {
                           style={{ width: '60px' }}
                         />
                       </td>
-                      <td colSpan={2}></td>
+                      <td>
+                        <select
+                          value={editSponsorRole}
+                          onChange={(e) => setEditSponsorRole(e.target.value as 'ninong' | 'ninang' | '')}
+                          className="edit-input"
+                        >
+                          <option value="">None</option>
+                          <option value="ninong">Ninong</option>
+                          <option value="ninang">Ninang</option>
+                        </select>
+                      </td>
+                      <td colSpan={1}></td>
                       <td></td>
                       <td className="action-cell">
                         <button className="btn-action btn-save" onClick={handleUpdate}>
@@ -437,6 +478,13 @@ const AdminPage: React.FC = () => {
                   ) : (
                     <>
                       <td>{guest.name}</td>
+                      <td>
+                        {guest.sponsor_role && (
+                          <span className={`sponsor-badge sponsor-badge-${guest.sponsor_role}`}>
+                            {guest.sponsor_role === 'ninong' ? 'Ninong' : 'Ninang'}
+                          </span>
+                        )}
+                      </td>
                       <td>{guest.email || '—'}</td>
                       <td>{guest.phone || '—'}</td>
                       <td>
@@ -494,7 +542,7 @@ const AdminPage: React.FC = () => {
               ))}
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="empty-row">
+                  <td colSpan={10} className="empty-row">
                     No guests found.
                   </td>
                 </tr>

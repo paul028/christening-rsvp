@@ -11,12 +11,15 @@ interface RsvpFormProps {
 const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
   const hasResponded = guest.rsvp_status !== 'pending';
   const [isEditing, setIsEditing] = useState(!hasResponded && windowOpen);
-  const [status, setStatus] = useState<'attending' | 'not_attending'>(
-    guest.rsvp_status === 'not_attending' ? 'not_attending' : 'attending'
+  const [status, setStatus] = useState<'attending' | 'not_attending' | null>(
+    guest.rsvp_status === 'pending' ? null : guest.rsvp_status
   );
   const emptyCompanion = (): Companion => ({ first_name: '', last_name: '', dietary_restrictions: null });
   const [companions, setCompanions] = useState<Companion[]>(
     guest.companions.length > 0 ? guest.companions : []
+  );
+  const [companionDietOpen, setCompanionDietOpen] = useState<boolean[]>(
+    guest.companions.map((c) => !!c.dietary_restrictions)
   );
   const [dietary, setDietary] = useState(guest.dietary_restrictions || '');
   const [message, setMessage] = useState(guest.message || '');
@@ -28,6 +31,12 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (!status) {
+      setError('Please select whether you will be attending.');
+      setLoading(false);
+      return;
+    }
 
     const data: RsvpRequest = {
       rsvp_status: status,
@@ -173,7 +182,10 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
                     <button
                       type="button"
                       className="btn-remove-companion"
-                      onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
+                      onClick={() => {
+                        setCompanions(companions.filter((_, j) => j !== i));
+                        setCompanionDietOpen(companionDietOpen.filter((_, j) => j !== i));
+                      }}
                     >
                       Remove
                     </button>
@@ -203,17 +215,31 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
                       }}
                       required
                     />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Dietary restrictions (optional)"
-                      value={c.dietary_restrictions || ''}
-                      onChange={(e) => {
-                        const updated = [...companions];
-                        updated[i] = { ...updated[i], dietary_restrictions: e.target.value || null };
-                        setCompanions(updated);
-                      }}
-                    />
+                    {companionDietOpen[i] ? (
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g., vegetarian, allergies..."
+                        value={c.dietary_restrictions || ''}
+                        onChange={(e) => {
+                          const updated = [...companions];
+                          updated[i] = { ...updated[i], dietary_restrictions: e.target.value || null };
+                          setCompanions(updated);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-companion-diet-toggle"
+                        onClick={() => {
+                          const updated = [...companionDietOpen];
+                          updated[i] = true;
+                          setCompanionDietOpen(updated);
+                        }}
+                      >
+                        + Add dietary restrictions
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -221,7 +247,10 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
                 <button
                   type="button"
                   className="btn btn-secondary btn-add-companion"
-                  onClick={() => setCompanions([...companions, emptyCompanion()])}
+                  onClick={() => {
+                    setCompanions([...companions, emptyCompanion()]);
+                    setCompanionDietOpen([...companionDietOpen, false]);
+                  }}
                 >
                   + Add Companion
                 </button>

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 interface FAQItem {
   question: string;
   answer: string;
+  companionsOnly?: boolean;
 }
 
 const faqs: FAQItem[] = [
@@ -12,34 +13,35 @@ const faqs: FAQItem[] = [
       'Please arrive at the church by 10:30 AM, 30 minutes before the ceremony begins at 11:00 AM.',
   },
   {
-    question: 'What should I wear?',
-    answer:
-      'Smart casual attire is recommended. Light colors are preferred for the occasion.',
-  },
-  {
     question: 'How do I get from the church to the reception?',
     answer:
-      "The reception is at Lasa inside SM Fairview. From Mary the Queen Parish, it's approximately a 15-20 minute drive. You can use the Google Maps link provided in the directions section.",
+      "The reception is at Lasa BBQ inside SM Fairview. From Mary the Queen Parish, it's approximately a 15-20 minute drive. You can use the Google Maps link provided in the directions section.",
   },
   {
     question: 'Is parking available?',
-    answer:
-      'SM Fairview has ample parking space available for all guests.',
+    answer: 'SM Fairview has ample parking space available for all guests.',
   },
   {
     question: 'Can I bring additional guests?',
     answer:
-      'Please indicate the number of companions in your RSVP so we can prepare accordingly.',
+      'Yes! Please indicate the first and last name of each companion in your RSVP so we can prepare accordingly.',
+    companionsOnly: true,
   },
   {
     question: 'What if I need to change my RSVP?',
     answer:
-      'You can update your RSVP anytime using the same link that was sent to you.',
+      'You can update your RSVP using the same link that was sent to you, as long as the RSVP window is still open.',
   },
 ];
 
-const FAQ: React.FC = () => {
+interface FAQProps {
+  maxCompanions?: number;
+}
+
+const FAQ: React.FC<FAQProps> = ({ maxCompanions = 0 }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const visibleFaqs = faqs.filter((f) => !(f.companionsOnly && maxCompanions === 0));
 
   const toggle = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -51,7 +53,7 @@ const FAQ: React.FC = () => {
       <div className="section-divider-small"></div>
 
       <div className="faq-list">
-        {faqs.map((faq, index) => (
+        {visibleFaqs.map((faq, index) => (
           <div
             key={index}
             className={`faq-item ${openIndex === index ? 'faq-item-open' : ''}`}

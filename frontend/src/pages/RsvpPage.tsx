@@ -3,11 +3,15 @@ import { useParams } from 'react-router-dom';
 import type { Guest } from '../types';
 import { getGuestByToken, getRsvpWindow } from '../api/client';
 import type { RsvpWindowStatus } from '../types';
+import InvitationEnvelope from '../components/InvitationEnvelope';
 import Header from '../components/Header';
 import EventDetails from '../components/EventDetails';
 import PhotoGallery from '../components/PhotoGallery';
 import RsvpForm from '../components/RsvpForm';
+import SponsorNotice from '../components/SponsorNotice';
+import DressCode from '../components/DressCode';
 import Directions from '../components/Directions';
+import Gifts from '../components/Gifts';
 import FAQ from '../components/FAQ';
 
 const RsvpPage: React.FC = () => {
@@ -50,18 +54,23 @@ const RsvpPage: React.FC = () => {
   }
 
   return (
+    <InvitationEnvelope guestName={guest.name} sponsorRole={guest.sponsor_role}>
     <div className="rsvp-page">
-      <Header guestName={guest.name} />
+      <Header guestName={guest.name} sponsorRole={guest.sponsor_role} />
+      {guest.sponsor_role && <SponsorNotice role={guest.sponsor_role} />}
       <EventDetails />
+      <DressCode />
       <PhotoGallery />
       <RsvpForm guest={guest} onUpdate={setGuest} windowOpen={window_?.is_open ?? true} />
       <Directions />
-      <FAQ />
+      <Gifts />
+      <FAQ maxCompanions={guest.max_companions} />
       <footer className="page-footer">
         <p>With love and blessings</p>
         <p className="footer-heart">&#9829;</p>
       </footer>
     </div>
+    </InvitationEnvelope>
   );
 };
 

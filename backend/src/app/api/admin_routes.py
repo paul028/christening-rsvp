@@ -46,12 +46,14 @@ class CreateGuestRequest(BaseModel):
         email: Optional email address.
         phone: Optional phone number.
         max_companions: Maximum number of companions this guest may bring.
+        sponsor_role: "ninong", "ninang", or None.
     """
 
     name: str
     email: str | None = None
     phone: str | None = None
     max_companions: int = 0
+    sponsor_role: str | None = None  # "ninong" | "ninang" | None
 
 
 class UpdateGuestRequest(BaseModel):
@@ -62,12 +64,14 @@ class UpdateGuestRequest(BaseModel):
         email: Updated email address.
         phone: Updated phone number.
         max_companions: Maximum number of companions this guest may bring.
+        sponsor_role: "ninong", "ninang", or None.
     """
 
     name: str
     email: str | None = None
     phone: str | None = None
     max_companions: int = 0
+    sponsor_role: str | None = None
 
 
 class RsvpStats(BaseModel):
@@ -117,6 +121,7 @@ async def create_guest_async(request: CreateGuestRequest) -> Guest:
         email=request.email,
         phone=request.phone,
         max_companions=request.max_companions,
+        sponsor_role=request.sponsor_role,
     )
 
 
@@ -142,6 +147,7 @@ async def update_guest_async(guest_id: str, request: UpdateGuestRequest) -> Gues
             email=request.email,
             phone=request.phone,
             max_companions=request.max_companions,
+            sponsor_role=request.sponsor_role,
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Guest not found")

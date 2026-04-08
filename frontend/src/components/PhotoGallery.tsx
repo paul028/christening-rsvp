@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const gradients = [
-  'linear-gradient(135deg, #f5e6d3, #e8b4b8)',
-  'linear-gradient(135deg, #e8b4b8, #d4a574)',
-  'linear-gradient(135deg, #d4a574, #f5e6d3)',
-  'linear-gradient(135deg, #faf8f5, #e8b4b8)',
-  'linear-gradient(135deg, #e8b4b8, #f5e6d3)',
-  'linear-gradient(135deg, #f5e6d3, #d4a574)',
+const photos = [
+  { src: '/gallery-1.jpg', alt: 'Danya smiling' },
+  { src: '/gallery-2.jpg', alt: 'Danya on the couch' },
+  { src: '/gallery-3.jpg', alt: 'Newborn Danya' },
+  { src: '/gallery-4.jpg', alt: 'Baby Danya with headband' },
+  { src: '/gallery-5.jpg', alt: 'Danya sitting up' },
+  { src: '/gallery-6.jpg', alt: 'Danya with glasses' },
 ];
 
 const PhotoGallery: React.FC = () => {
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  const prev = () => setLightbox((i) => (i! + photos.length - 1) % photos.length);
+  const next = () => setLightbox((i) => (i! + 1) % photos.length);
+
   return (
     <section className="section photo-gallery">
       <h2 className="section-title">Precious Moments</h2>
@@ -17,19 +22,30 @@ const PhotoGallery: React.FC = () => {
       <p className="section-description">A glimpse of our little blessing</p>
 
       <div className="gallery-grid">
-        {gradients.map((gradient, index) => (
+        {photos.map((photo, index) => (
           <div
             key={index}
-            className="gallery-item"
-            style={{ background: gradient }}
+            className="gallery-item gallery-item-photo"
+            onClick={() => setLightbox(index)}
           >
-            <div className="gallery-placeholder">
-              <span className="gallery-icon">&#128247;</span>
-              <span className="gallery-label">Photo coming soon</span>
-            </div>
+            <img src={photo.src} alt={photo.alt} className="gallery-photo" />
           </div>
         ))}
       </div>
+
+      {lightbox !== null && (
+        <div className="lightbox" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
+          <button className="lightbox-prev" onClick={(e) => { e.stopPropagation(); prev(); }}>‹</button>
+          <img
+            src={photos[lightbox].src}
+            alt={photos[lightbox].alt}
+            className="lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button className="lightbox-next" onClick={(e) => { e.stopPropagation(); next(); }}>›</button>
+        </div>
+      )}
     </section>
   );
 };

@@ -51,6 +51,7 @@ class Guest(BaseModel):
     email: str | None = None
     phone: str | None = None
     token: str
+    sponsor_role: str | None = None  # "ninong" | "ninang" | None
     rsvp_status: RsvpStatus = RsvpStatus.PENDING
     max_companions: int = 0
     companions: list[Companion] = []

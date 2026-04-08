@@ -32,6 +32,7 @@ class GuestService:
         email: str | None = None,
         phone: str | None = None,
         max_companions: int = 0,
+        sponsor_role: str | None = None,
     ) -> Guest:
         """Create a new guest with a unique RSVP token.
 
@@ -40,6 +41,7 @@ class GuestService:
             email: Optional email address.
             phone: Optional phone number.
             max_companions: Maximum companions this guest may bring.
+            sponsor_role: "ninong", "ninang", or None.
 
         Returns:
             The newly created guest record.
@@ -51,6 +53,7 @@ class GuestService:
             phone=phone,
             token=self._token_service.generate_token(),
             max_companions=max_companions,
+            sponsor_role=sponsor_role,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         return await self._guest_repository.add_async(guest)
@@ -122,6 +125,7 @@ class GuestService:
         email: str | None = None,
         phone: str | None = None,
         max_companions: int = 0,
+        sponsor_role: str | None = None,
     ) -> Guest:
         """Update a guest's personal information.
 
@@ -148,6 +152,7 @@ class GuestService:
                 "email": email,
                 "phone": phone,
                 "max_companions": max_companions,
+                "sponsor_role": sponsor_role,
             }
         )
         return await self._guest_repository.update_async(updated_guest)
