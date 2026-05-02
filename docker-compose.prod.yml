@@ -24,7 +24,9 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:8000:8000"
+      # Host 8005 → container 8000. Host 8000 is already used by another
+      # project co-hosted on this VM (erb-young).
+      - "127.0.0.1:8005:8000"
     volumes:
       # Persist guest data across container restarts.
       - ./backend/data:/app/data
