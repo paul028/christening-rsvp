@@ -9,6 +9,7 @@ import EventDetails from '../components/EventDetails';
 import PhotoGallery from '../components/PhotoGallery';
 import RsvpForm from '../components/RsvpForm';
 import SponsorNotice from '../components/SponsorNotice';
+import HealthNotice from '../components/HealthNotice';
 import DressCode from '../components/DressCode';
 import Directions from '../components/Directions';
 import Gifts from '../components/Gifts';
@@ -58,6 +59,7 @@ const RsvpPage: React.FC = () => {
     <div className="rsvp-page">
       <Header guestName={guest.name} sponsorRole={guest.sponsor_role} />
       {guest.sponsor_role && <SponsorNotice role={guest.sponsor_role} />}
+      <HealthNotice />
       <EventDetails />
       <DressCode />
       <PhotoGallery />

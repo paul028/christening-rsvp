@@ -8,7 +8,7 @@ const DressCode: React.FC = () => {
 
       <div className="dress-code-card">
         <p className="dress-code-note">
-          Smart casual — it's the peak of summer, so dress light and comfortable!
+          Smart casual. It's the peak of summer, so dress light and comfortable!
         </p>
         <div className="dress-code-items">
           <div className="dress-code-item">

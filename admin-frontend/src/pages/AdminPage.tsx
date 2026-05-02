@@ -8,7 +8,11 @@ import {
   getStats,
   getAdminRsvpWindow,
   setAdminRsvpWindow,
+  getAdminAuth,
+  setAdminAuth,
+  clearAdminAuth,
 } from '../api/client';
+import AdminLogin from '../components/AdminLogin';
 import type { RsvpWindowStatus } from '../types';
 
 const AdminPage: React.FC = () => {
@@ -44,6 +48,9 @@ const AdminPage: React.FC = () => {
 
   // Copied URL feedback
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  // Auth
+  const [authed, setAuthed] = useState<boolean>(!!getAdminAuth());
 
   const toLocalDatetimeInput = (iso: string) => {
     const d = new Date(iso);
@@ -91,16 +98,35 @@ const AdminPage: React.FC = () => {
       setRsvpWindow(windowData);
       setWindowStart(windowData.start_date ? toLocalDatetimeInput(windowData.start_date) : '');
       setWindowEnd(windowData.end_date ? toLocalDatetimeInput(windowData.end_date) : '');
-    } catch {
-      setError('Failed to load data. Is the API server running?');
+      setAuthed(true);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
+        clearAdminAuth();
+        setAuthed(false);
+      } else {
+        setError('Failed to load data. Is the API server running?');
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (authed) fetchData();
+    else setLoading(false);
+  }, [fetchData, authed]);
+
+  const handleLogin = (username: string, password: string) => {
+    setAdminAuth(username, password);
+    setAuthed(true);
+    setLoading(true);
+  };
+
+  const handleLogout = () => {
+    clearAdminAuth();
+    setAuthed(false);
+  };
 
   const handleAddGuest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +192,7 @@ const AdminPage: React.FC = () => {
   };
 
   const copyUrl = (token: string) => {
-    const base = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+    const base = import.meta.env.VITE_GUEST_PUBLIC_URL || window.location.origin;
     const url = `${base}/rsvp/${token}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => {
@@ -219,6 +245,10 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  if (!authed) {
+    return <AdminLogin onLogin={handleLogin} />;
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -232,6 +262,7 @@ const AdminPage: React.FC = () => {
     <div className="admin-page">
       <div className="admin-header">
         <h1>Christening RSVP Dashboard</h1>
+        <button className="btn-logout" onClick={handleLogout}>Logout</button>
       </div>
 
       {error && (
@@ -360,7 +391,7 @@ const AdminPage: React.FC = () => {
               <strong>{lastAddedGuest.name}</strong> added successfully!
             </p>
             <div className="rsvp-url-display">
-              <code>{import.meta.env.VITE_PUBLIC_URL || window.location.origin}/rsvp/{lastAddedGuest.token}</code>
+              <code>{import.meta.env.VITE_GUEST_PUBLIC_URL || window.location.origin}/rsvp/{lastAddedGuest.token}</code>
               <button
                 className="btn-copy"
                 onClick={() => copyUrl(lastAddedGuest.token)}
@@ -485,8 +516,8 @@ const AdminPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td>{guest.email || '—'}</td>
-                      <td>{guest.phone || '—'}</td>
+                      <td>{guest.email || '-'}</td>
+                      <td>{guest.phone || '-'}</td>
                       <td>
                         <span
                           className="table-status-badge"
@@ -499,7 +530,7 @@ const AdminPage: React.FC = () => {
                       </td>
                       <td>{guest.max_companions}</td>
                       <td>
-                        {guest.companions.length === 0 ? '—' : (
+                        {guest.companions.length === 0 ? '-' : (
                           <ul style={{ margin: 0, padding: '0 0 0 1rem' }}>
                             {guest.companions.map((c, i) => (
                               <li key={i}>{c.first_name} {c.last_name}</li>
@@ -512,7 +543,7 @@ const AdminPage: React.FC = () => {
                           ? guest.message.length > 30
                             ? guest.message.slice(0, 30) + '...'
                             : guest.message
-                          : '—'}
+                          : '-'}
                       </td>
                       <td>
                         <button

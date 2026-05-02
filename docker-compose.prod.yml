@@ -1,0 +1,69 @@
+# ═══════════════════════════════════════════════════════════════════
+# Production stack — Christening RSVP.
+#
+# Paired with the host-level nginx + certbot installed by
+# nginx-host/setup.sh. All container ports bind to 127.0.0.1 only —
+# the host nginx is the only public surface.
+#
+# Three subdomains served:
+#   GUEST_URL  → public RSVP site         (frontend, port 5173)
+#   ADMIN_URL  → admin dashboard          (admin-frontend, port 5174)
+#   BASE_URL   → backend API              (backend, port 8000)
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+
+  # Prod backend: no bind mount, no --reload.
+  backend:
+    build:
+      context: ./backend
+    container_name: danya-backend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Persist guest data across container restarts.
+      - ./backend/data:/app/data
+    command: >
+      uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+      --log-level info
+      --proxy-headers
+      --forwarded-allow-ips=*
+
+  # Prod public RSVP site: multi-stage build → nginx serves static dist.
+  # VITE_BACKEND_URL is baked in at build time so the bundled JS calls
+  # the right backend domain.
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_BACKEND_URL: ${BASE_URL}
+    container_name: danya-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - backend
+
+  # Prod admin dashboard.
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      target: prod
+      args:
+        VITE_BACKEND_URL: ${BASE_URL}
+        VITE_GUEST_PUBLIC_URL: ${GUEST_URL}
+    container_name: danya-admin-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5174:80"
+    depends_on:
+      - backend

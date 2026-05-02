@@ -1,8 +1,12 @@
 import axios from 'axios';
-import type { Guest, RsvpRequest, EventInfo, RsvpStats, RsvpWindowStatus } from '../types';
+import type { Guest, RsvpRequest, EventInfo, RsvpWindowStatus } from '../types';
+
+const baseURL = import.meta.env.VITE_BACKEND_URL
+  ? `${import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')}/api`
+  : '/api';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,44 +27,7 @@ export async function getEventDetails(): Promise<EventInfo> {
   return response.data;
 }
 
-export async function getAdminGuests(): Promise<Guest[]> {
-  const response = await api.get<Guest[]>('/admin/guests');
-  return response.data;
-}
-
-export async function addGuest(name: string, email?: string, phone?: string, max_companions?: number, sponsor_role?: 'ninong' | 'ninang' | null): Promise<Guest> {
-  const response = await api.post<Guest>('/admin/guests', { name, email, phone, max_companions: max_companions ?? 0, sponsor_role: sponsor_role ?? null });
-  return response.data;
-}
-
-export async function updateGuest(guestId: string, name: string, email?: string, phone?: string, max_companions?: number, sponsor_role?: 'ninong' | 'ninang' | null): Promise<Guest> {
-  const response = await api.put<Guest>(`/admin/guests/${guestId}`, { name, email, phone, max_companions: max_companions ?? 0, sponsor_role: sponsor_role ?? null });
-  return response.data;
-}
-
-export async function deleteGuest(guestId: string): Promise<void> {
-  await api.delete(`/admin/guests/${guestId}`);
-}
-
-export async function getStats(): Promise<RsvpStats> {
-  const response = await api.get<RsvpStats>('/admin/stats');
-  return response.data;
-}
-
 export async function getRsvpWindow(): Promise<RsvpWindowStatus> {
   const response = await api.get<RsvpWindowStatus>('/rsvp-window');
-  return response.data;
-}
-
-export async function getAdminRsvpWindow(): Promise<RsvpWindowStatus> {
-  const response = await api.get<RsvpWindowStatus>('/admin/rsvp-window');
-  return response.data;
-}
-
-export async function setAdminRsvpWindow(startDate: string | null, endDate: string | null): Promise<RsvpWindowStatus> {
-  const response = await api.put<RsvpWindowStatus>('/admin/rsvp-window', {
-    start_date: startDate,
-    end_date: endDate,
-  });
   return response.data;
 }

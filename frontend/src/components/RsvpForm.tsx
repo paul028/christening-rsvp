@@ -101,7 +101,7 @@ const RsvpForm: React.FC<RsvpFormProps> = ({ guest, onUpdate, windowOpen }) => {
                   {guest.companions.map((c, i) => (
                     <li key={i}>
                       {c.first_name} {c.last_name}
-                      {c.dietary_restrictions && ` — ${c.dietary_restrictions}`}
+                      {c.dietary_restrictions && ` (${c.dietary_restrictions})`}
                     </li>
                   ))}
                 </ul>

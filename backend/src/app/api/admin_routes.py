@@ -1,14 +1,19 @@
 """Admin API endpoints for guest management."""
 
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from src.app.auth import require_admin
 from src.core.models.guest import Guest, RsvpStatus
 from src.core.models.rsvp_window import RsvpWindow, RsvpWindowStatus
 from src.services.guest_service import GuestService
 from src.services.settings_service import SettingsService
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 _guest_service: GuestService | None = None
 _settings_service: SettingsService | None = None

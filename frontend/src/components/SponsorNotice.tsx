@@ -12,8 +12,8 @@ const SponsorNotice: React.FC<Props> = ({ role }) => {
       <div className="sponsor-notice-inner">
         <p className="sponsor-notice-label">To my {title}</p>
         <p className="sponsor-notice-message">
-          As my {title}, I would love for you to be there a little earlier —
-          please arrive at the church by
+          As my {title}, I would love for you to be there a little earlier.
+          Please arrive at the church by
         </p>
         <p className="sponsor-notice-time">10:00 AM</p>
         <p className="sponsor-notice-sub">

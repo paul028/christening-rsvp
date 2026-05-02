@@ -1,6 +1,14 @@
 """Application settings loaded from environment variables."""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+
+# Repo root .env is the single source of truth. When running inside Docker,
+# the env vars are injected by env_file in docker-compose, and this path
+# simply doesn't exist (which is fine — pydantic falls back to env vars).
+_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
 
 
 class AppSettings(BaseSettings):
@@ -19,7 +27,9 @@ class AppSettings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
     DATA_DIR: str = "./data"
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://localhost:5174"
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "changeme"
 
     def get_cors_origins_list(self) -> list[str]:
         """Parse the comma-separated CORS origins string.
@@ -29,4 +39,4 @@ class AppSettings(BaseSettings):
         """
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = {"env_file": str(_ROOT_ENV), "extra": "ignore"}

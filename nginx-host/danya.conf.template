@@ -1,0 +1,95 @@
+# Source-of-truth nginx config for the Christening RSVP deploy.
+#
+# `nginx-host/setup.sh` reads `GUEST_URL`, `ADMIN_URL`, and `BASE_URL`
+# from the VM's `.env` and renders this template by substituting:
+#
+#   {{GUEST_HOST}}    ← GUEST_URL hostname (e.g. danyarsvp.pnonat.com)
+#   {{ADMIN_HOST}}    ← ADMIN_URL hostname (e.g. danyainternal.pnonat.com)
+#   {{BACKEND_HOST}}  ← BASE_URL  hostname (e.g. danyabackend.pnonat.com)
+#
+# Don't edit the rendered file in /etc/nginx/sites-available/ — your
+# changes will be wiped on the next setup.sh run.
+
+# ── Public RSVP Site ───────────────────────────────────
+server {
+    listen 80;
+    server_name {{GUEST_HOST}};
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name {{GUEST_HOST}};
+
+    ssl_certificate     /etc/letsencrypt/live/{{GUEST_HOST}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{GUEST_HOST}}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:5173;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+
+# ── Admin Dashboard ────────────────────────────────────
+server {
+    listen 80;
+    server_name {{ADMIN_HOST}};
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name {{ADMIN_HOST}};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ADMIN_HOST}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ADMIN_HOST}}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:5174;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+
+# ── Backend API ────────────────────────────────────────
+server {
+    listen 80;
+    server_name {{BACKEND_HOST}};
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name {{BACKEND_HOST}};
+
+    ssl_certificate     /etc/letsencrypt/live/{{BACKEND_HOST}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{BACKEND_HOST}}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}

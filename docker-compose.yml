@@ -1,0 +1,71 @@
+# Dev compose — local development stack.
+#
+# - Backend runs uvicorn --reload with bind-mounted source.
+# - Both frontends run Vite dev server with HMR, with bind-mounted source.
+# - All services read env vars from the unified repo-root .env via env_file.
+#
+# Usage:
+#   docker compose up --build
+#   open http://localhost:5173        # public RSVP site
+#   open http://localhost:5174        # admin dashboard
+#   open http://localhost:8000/docs   # backend API docs
+
+services:
+
+  # ── FastAPI Backend ─────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    container_name: danya-backend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind-mount source so uvicorn --reload picks up local edits.
+      - ./backend:/app
+      # Persist guest data across container restarts.
+      - ./backend/data:/app/data
+    command: >
+      uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level info
+
+  # ── Public RSVP Frontend (Vite dev server with HMR) ──────
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    container_name: danya-frontend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Mask the bind mount's node_modules with the container's so
+      # native deps (esbuild, etc.) resolve correctly.
+      - /app/node_modules
+      # The Vite config reads envDir: '..' so make .env visible.
+      - ./.env:/.env:ro
+    depends_on:
+      - backend
+
+  # ── Admin Frontend (Vite dev server with HMR) ────────────
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      target: dev
+    container_name: danya-admin-frontend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./admin-frontend:/app
+      - /app/node_modules
+      - ./.env:/.env:ro
+    depends_on:
+      - backend

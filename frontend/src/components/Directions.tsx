@@ -58,7 +58,7 @@ const Directions: React.FC = () => {
 
         <div className="direction-card">
           <div className="direction-icon">&#127860;</div>
-          <h3>Lasa BBQ — SM Fairview</h3>
+          <h3>Lasa BBQ at SM Fairview</h3>
           <p className="direction-area">Reception Venue</p>
           <p className="direction-text">
             Located inside SM Fairview mall. Ample parking is available. Approximately 15–20 minutes from the church.
