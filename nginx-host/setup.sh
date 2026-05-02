@@ -103,25 +103,18 @@ ln -sf "$RENDERED" /etc/nginx/sites-enabled/danya.conf
 nginx -t
 systemctl reload nginx
 
-# ── 3. Obtain certificates via webroot (single batched request) ──
-CERTBOT_D_ARGS=()
-for DOMAIN in "${DOMAINS[@]}"; do
-    if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-        echo "✓ $DOMAIN already has a cert — skipping"
-        continue
-    fi
-    CERTBOT_D_ARGS+=(-d "$DOMAIN")
-done
-
-if [ "${#CERTBOT_D_ARGS[@]}" -gt 0 ]; then
-    certbot certonly --webroot -w "$WEBROOT" \
-        "${CERTBOT_D_ARGS[@]}" \
-        --non-interactive \
-        --agree-tos \
-        -m "$EMAIL"
-else
-    echo "All domains already certificated — nothing to request."
-fi
+# ── 3. Obtain a single SAN certificate covering all three domains ──
+# Stored under /etc/letsencrypt/live/$GUEST_HOST/ (the first -d arg).
+# The nginx template references that same path from all three server
+# blocks. Idempotent: certbot's --keep-until-expiring makes re-runs a
+# no-op while the existing cert is still valid.
+certbot certonly --webroot -w "$WEBROOT" \
+    --cert-name "$GUEST_HOST" \
+    -d "$GUEST_HOST" -d "$ADMIN_HOST" -d "$BACKEND_HOST" \
+    --non-interactive \
+    --agree-tos \
+    --keep-until-expiring \
+    -m "$EMAIL"
 
 # ── 4. Render full template (port 80 + 443 with SSL) ─────────
 sed -e "s|{{GUEST_HOST}}|$GUEST_HOST|g" \

@@ -9,6 +9,9 @@
 #
 # Cert issuance + renewal uses certbot in --webroot mode so this config
 # coexists cleanly with other projects' nginx configs on the same VM.
+# A single SAN cert covers all three hostnames; certbot stores it under
+# the first domain's directory (GUEST_HOST), so all three server blocks
+# below reference that same path. Renewal updates it in place.
 # Don't edit the rendered file in /etc/nginx/sites-available/ — your
 # changes will be wiped on the next setup.sh run.
 
@@ -62,8 +65,9 @@ server {
     listen 443 ssl;
     server_name {{ADMIN_HOST}};
 
-    ssl_certificate     /etc/letsencrypt/live/{{ADMIN_HOST}}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ADMIN_HOST}}/privkey.pem;
+    # Shared SAN cert (covers all three hosts, stored under {{GUEST_HOST}}).
+    ssl_certificate     /etc/letsencrypt/live/{{GUEST_HOST}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{GUEST_HOST}}/privkey.pem;
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -94,8 +98,9 @@ server {
     listen 443 ssl;
     server_name {{BACKEND_HOST}};
 
-    ssl_certificate     /etc/letsencrypt/live/{{BACKEND_HOST}}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{BACKEND_HOST}}/privkey.pem;
+    # Shared SAN cert (covers all three hosts, stored under {{GUEST_HOST}}).
+    ssl_certificate     /etc/letsencrypt/live/{{GUEST_HOST}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{GUEST_HOST}}/privkey.pem;
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
