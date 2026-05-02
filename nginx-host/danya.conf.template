@@ -7,6 +7,8 @@
 #   {{ADMIN_HOST}}    ← ADMIN_URL hostname (e.g. danyainternal.pnonat.com)
 #   {{BACKEND_HOST}}  ← BASE_URL  hostname (e.g. danyabackend.pnonat.com)
 #
+# Cert issuance + renewal uses certbot in --webroot mode so this config
+# coexists cleanly with other projects' nginx configs on the same VM.
 # Don't edit the rendered file in /etc/nginx/sites-available/ — your
 # changes will be wiped on the next setup.sh run.
 
@@ -14,6 +16,10 @@
 server {
     listen 80;
     server_name {{GUEST_HOST}};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     location / {
         return 301 https://$host$request_uri;
@@ -43,6 +49,10 @@ server {
     listen 80;
     server_name {{ADMIN_HOST}};
 
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
     location / {
         return 301 https://$host$request_uri;
     }
@@ -70,6 +80,10 @@ server {
 server {
     listen 80;
     server_name {{BACKEND_HOST}};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     location / {
         return 301 https://$host$request_uri;

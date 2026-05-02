@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Run this on the production VM to install (or re-issue) host-level nginx +
-# Let's Encrypt certs for whatever hostnames live in the VM's `.env`.
+# Let's Encrypt certs for the three Danya RSVP subdomains.
 #
 # Single source of truth: GUEST_URL + ADMIN_URL + BASE_URL in `.env`.
+#
+# Designed to co-exist with other nginx configs already on the host (e.g.
+# the erb-young deploy). Cert issuance uses certbot --webroot rather than
+# --nginx, so we never auto-edit other projects' configs.
 #
 # Re-run safely: idempotent for installed packages and already-issued
 # certs.
 #
 # Pre-requisite: A-records for all three subdomains point at this VM's
-# external IP; otherwise certbot can't validate.
+# external IP; otherwise the HTTP-01 challenge can't validate.
 
 set -euo pipefail
 
@@ -46,6 +50,9 @@ DOMAINS=("$GUEST_HOST" "$ADMIN_HOST" "$BACKEND_HOST")
 EMAIL="$(read_env CERTBOT_EMAIL)"
 EMAIL="${EMAIL:-admin@example.com}"
 
+WEBROOT=/var/www/certbot
+RENDERED=/etc/nginx/sites-available/danya.conf
+
 echo ""
 echo "Configuring nginx for:"
 echo "  Guest host:   $GUEST_HOST"
@@ -56,25 +63,47 @@ echo ""
 
 # ── 1. Install nginx + certbot ────────────────────────────────
 apt-get update -y
-apt-get install -y nginx certbot python3-certbot-nginx
+apt-get install -y nginx certbot
 
-# ── 2. Render template + drop in place ────────────────────────
-RENDERED=/etc/nginx/sites-available/danya.conf
-sed -e "s|{{GUEST_HOST}}|$GUEST_HOST|g" \
-    -e "s|{{ADMIN_HOST}}|$ADMIN_HOST|g" \
-    -e "s|{{BACKEND_HOST}}|$BACKEND_HOST|g" \
-    "$TEMPLATE" > "$RENDERED"
+mkdir -p "$WEBROOT"
+chown -R www-data:www-data "$WEBROOT"
+
+# ── 2. Render an HTTP-only init config ────────────────────────
+# Just the port-80 redirect blocks plus the /.well-known/acme-challenge
+# location used for HTTP-01 validation. No port-443 blocks yet — the
+# certs they reference don't exist on first run, which would fail
+# nginx -t.
+cat > "$RENDERED" <<EOF
+# Auto-generated init config for cert issuance. Replaced with the full
+# template by setup.sh after certbot succeeds.
+
+server {
+    listen 80;
+    server_name $GUEST_HOST;
+    location /.well-known/acme-challenge/ { root $WEBROOT; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+
+server {
+    listen 80;
+    server_name $ADMIN_HOST;
+    location /.well-known/acme-challenge/ { root $WEBROOT; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+
+server {
+    listen 80;
+    server_name $BACKEND_HOST;
+    location /.well-known/acme-challenge/ { root $WEBROOT; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+EOF
+
 ln -sf "$RENDERED" /etc/nginx/sites-enabled/danya.conf
-rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl reload nginx
 
-# Temporarily strip SSL directives so nginx can start before certs exist.
-# certbot --nginx will add them back in step 3.
-sed 's/listen 443 ssl;/listen 443;/g; /ssl_certificate/d; /include.*options-ssl/d; /ssl_dhparam/d' \
-    "$RENDERED" > /tmp/danya-http-only.conf
-cp /tmp/danya-http-only.conf "$RENDERED"
-nginx -t && systemctl reload nginx
-
-# ── 3. Obtain certificates (single batched request) ──────────
+# ── 3. Obtain certificates via webroot (single batched request) ──
 CERTBOT_D_ARGS=()
 for DOMAIN in "${DOMAINS[@]}"; do
     if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
@@ -85,7 +114,7 @@ for DOMAIN in "${DOMAINS[@]}"; do
 done
 
 if [ "${#CERTBOT_D_ARGS[@]}" -gt 0 ]; then
-    certbot certonly --nginx \
+    certbot certonly --webroot -w "$WEBROOT" \
         "${CERTBOT_D_ARGS[@]}" \
         --non-interactive \
         --agree-tos \
@@ -94,14 +123,16 @@ else
     echo "All domains already certificated — nothing to request."
 fi
 
-# ── 4. Restore full SSL config from the template ─────────────
+# ── 4. Render full template (port 80 + 443 with SSL) ─────────
 sed -e "s|{{GUEST_HOST}}|$GUEST_HOST|g" \
     -e "s|{{ADMIN_HOST}}|$ADMIN_HOST|g" \
     -e "s|{{BACKEND_HOST}}|$BACKEND_HOST|g" \
     "$TEMPLATE" > "$RENDERED"
-nginx -t && systemctl reload nginx
+nginx -t
+systemctl reload nginx
 
-# ── 5. Auto-renew ─────────────────────────────────────────────
+# ── 5. Verify auto-renew is set up ───────────────────────────
+# certbot installs a systemd timer automatically on Debian/Ubuntu.
 systemctl status certbot.timer --no-pager || true
 
 echo ""
